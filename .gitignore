@@ -1,0 +1,14 @@
+# C
+*.exe
+*.out
+*.o
+*.obj
+*.dll
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE/editor files
+.vscode/
+*.code-workspace

@@ -59,13 +59,13 @@ typedef struct HeapChunk {
     void *head;              // Start of usable memory
     void *tail;              // End of usable memory
     void *curr_pos;          // Bump allocation pointer
-    mem_header *first_block; // Head of block list
-    mem_header *last_block;  // Tail of block list
-    heap_chunk *prev_chunk;  // Previous chunk in list
-    heap_chunk *next_chunk;  // Next chunk in list
+    mem_header *first_block; // First allocated mem block
+    mem_header *last_block;  // Last allocated mem block
+    heap_chunk *prev_chunk;  // Previous heap chunk
+    heap_chunk *next_chunk;  // Next heap chunk
     size_t total_size;       // Total usable bytes
     size_t free_size;        // Fragmented free space
-    size_t free_cont_size;   // Contiguous free space after curr_pos
+    size_t free_cont_size;   // Contiguous free space
 } heap_chunk;
 ```
 
@@ -75,9 +75,9 @@ typedef struct HeapChunk {
 typedef struct MemHeader {
     size_t size;          // Size of usable memory (excluding header)
     bool is_free;         // Allocation status
-    heap_chunk *chunk;    // Parent chunk (for O(1) free_mem)
-    mem_header *prev_mem; // Previous block in list
-    mem_header *next_mem; // Next block in list
+    heap_chunk *chunk;    // Parent heap chunk
+    mem_header *prev_mem; // Previous mem block in list
+    mem_header *next_mem; // Next mem block in list
 } mem_header;
 ```
 

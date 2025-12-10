@@ -9,40 +9,36 @@ typedef struct MemHeader mem_header;
 
 typedef struct HeapChunk
 {
-    void *head;              // first ptr
-    void *tail;              // last ptr
-    void *curr_pos;          // all allocated mem blocks <-- curr_pos --> all unallocated mem blocks
-    mem_header *first_block; // first allocated mem block
-    mem_header *last_block;  // last allocated mem block
-    heap_chunk *prev_chunk;  // prev heap chunk
-    heap_chunk *next_chunk;  // next heap chunk
-    size_t total_size;       // absolute size of the entire chunk
-    size_t free_size;        // total size of all freed memory blocks in the chunk
-    size_t free_cont_size;   // total space left after curr_pos
+    void *head;              // Start of usable memory
+    void *tail;              // End of usable memory
+    void *curr_pos;          // Bump allocation pointer
+    mem_header *first_block; // First allocated mem block
+    mem_header *last_block;  // Last allocated mem block
+    heap_chunk *prev_chunk;  // Previous heap chunk
+    heap_chunk *next_chunk;  // Next heap chunk
+    size_t total_size;       // Total usable bytes
+    size_t free_size;        // Fragmented free space
+    size_t free_cont_size;   // Contiguous free space
 } heap_chunk;
 
 typedef struct MemHeader
 {
-    size_t size;          // all bytes - sizeof(mem_header)
-    bool is_free;         // for deallocation
-    heap_chunk *chunk;    // heap chunk where a mem block belongs
-    mem_header *prev_mem; // prev mem block within a heap chunk
-    mem_header *next_mem; // next mem block within a heap chunk
+    size_t size;          // Size of usable memory (excluding header)
+    bool is_free;         // Allocation status
+    heap_chunk *chunk;    // Parent heap chunk
+    mem_header *prev_mem; // Previous mem block in list
+    mem_header *next_mem; // Next mem block in list
 } mem_header;
 
 // Globals
-heap_chunk *heap_head = NULL; // head of all heap chunks
-heap_chunk *heap_tail = NULL; // tail of all heap chunks
+heap_chunk *heap_head = NULL; // Head of all heap chunks
+heap_chunk *heap_tail = NULL; // Tail of all heap chunks
 
 heap_chunk *alloc_heap_chunk(size_t size);
+void free_heap_chunk(heap_chunk *chunk);
 void *alloc_mem(size_t size);
 mem_header *find_mem_spot(size_t size);
 void free_mem(void *ptr);
-
-int main(void)
-{
-    return 0;
-}
 
 heap_chunk *alloc_heap_chunk(size_t chunk_size)
 {
@@ -84,6 +80,56 @@ heap_chunk *alloc_heap_chunk(size_t chunk_size)
     }
 
     return new_heap_chunk;
+}
+
+void free_heap_chunk(heap_chunk *chunk)
+{
+    if (chunk == NULL)
+    {
+        fprintf(stderr, "A NULL heap chunk can\'t be deallocated\n");
+        return;
+    }
+
+    if (heap_head == NULL)
+    {
+        fprintf(stderr, "Heap is not initialized\n");
+        return;
+    }
+
+    if (chunk == heap_head)
+    {
+        heap_head = chunk->next_chunk;
+
+        if (heap_head != NULL)
+        {
+            heap_head->prev_chunk = NULL;
+        }
+
+        else
+        {
+            heap_tail = NULL;
+        }
+    }
+
+    else
+    {
+        chunk->prev_chunk->next_chunk = chunk->next_chunk;
+
+        if (chunk->next_chunk != NULL)
+        {
+            chunk->next_chunk->prev_chunk = chunk->prev_chunk;
+        }
+
+        else
+        {
+            heap_tail = chunk->prev_chunk;
+        }
+    }
+
+    if (munmap(chunk, sizeof(heap_chunk) + chunk->total_size) != 0)
+    {
+        fprintf(stderr, "Failed to deallocate the heap chunk memory\n");
+    }
 }
 
 void *alloc_mem(size_t size)
@@ -163,7 +209,7 @@ mem_header *find_mem_spot(size_t size)
 
     while (curr_heap_chunk != NULL)
     {
-        // search for a free mem block
+        // Search for a free mem block
         if (curr_heap_chunk->free_size >= size)
         {
             mem_header *curr_mem = curr_heap_chunk->head;
@@ -213,7 +259,7 @@ mem_header *find_mem_spot(size_t size)
             }
         }
 
-        // linear bump allocation
+        // Linear bump allocation
         if (curr_heap_chunk->free_cont_size >= sizeof(mem_header) + size)
         {
             mem_header *mem = curr_heap_chunk->curr_pos;
@@ -313,7 +359,7 @@ void free_mem(void *ptr)
         chunk->free_size += sizeof(mem_header);
     }
 
-    // if this is the last allocated block, we can reclaim as contiguous space
+    // If this is the last allocated block, we can reclaim as contiguous space
     if (mem->next_mem == NULL)
     {
         chunk->curr_pos = (void *)mem;
@@ -330,5 +376,11 @@ void free_mem(void *ptr)
         {
             chunk->first_block = NULL;
         }
+    }
+
+    // If there are no mem blocks present, we free the whole chunk
+    if (chunk->first_block == NULL)
+    {
+        free_heap_chunk(chunk);
     }
 }

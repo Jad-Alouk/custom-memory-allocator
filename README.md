@@ -147,6 +147,7 @@ int main(void) {
     free_mem(a);
     int *b = alloc_mem(sizeof(int));
     *b = 99;
+    free(b);
 
     // Test 4: Large allocation (gets dedicated chunk)
     char *big = alloc_mem(2 * 1024 * 1024);  // 2MB
@@ -171,9 +172,8 @@ int main(void) {
 
 1. **No alignment guarantees** - May cause issues on architectures requiring aligned access
 2. **No thread safety** - Not safe for multi-threaded use
-3. **No chunk deallocation** - Empty chunks are never returned to the OS
-4. **Linear search** - O(n·m) for finding free blocks in worst case
-5. **No realloc** - Only malloc/free implemented
+3. **Linear search** - O(n·m) for finding free blocks in worst case
+4. **No realloc** - Only malloc/free implemented
 
 ### Edge Cases
 
